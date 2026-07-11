@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -11,30 +12,60 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [22, 24]
+        node-version: [18.x, 20.x, 22.x]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-      - name: Run CLI smoke tests
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with stats
+        run: npm test -- --reporter spec
         env:
-          NO_COLOR: "1"
-          PROXY_JOURNAL_HOME: ${{ runner.temp }}/pj-test
-        run: |
-          node bin/proxy-journal.mjs help
-          node bin/proxy-journal.mjs version
-          node bin/proxy-journal.mjs init "Proxy" "CI"
-          node bin/proxy-journal.mjs status
-          node bin/proxy-journal.mjs log smoke "ci run"
-          node bin/proxy-journal.mjs remember "CI" "Smoke test episode"
-          node bin/proxy-journal.mjs fact runner "github-actions"
-          node bin/proxy-journal.mjs open "Ship release" "public GitHub"
-          node bin/proxy-journal.mjs history 5
-          node bin/proxy-journal.mjs close "Ship release"
-          node bin/proxy-journal.mjs preserve
-          node bin/proxy-journal.mjs wake | head -25
-      - name: Unit tests
+          NO_COLOR: 1
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests before publish
+        run: npm test
+
+      - name: Publish to npm
+        run: npm publish
         env:
-          NO_COLOR: "1"
-        run: node --test test/*.test.mjs
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Published to npm: https://www.npmjs.com/package/proxy-journal
+            
+            See [CHANGELOG](https://github.com/digivasserver-ai/PROXY-JOURNAL/blob/main/CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
