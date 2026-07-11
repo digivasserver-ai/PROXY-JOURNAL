@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 
 function freeDisk() {
   try {
-    const out = execSync('df -h . 2>/dev/null | tail -1', { encoding: 'utf8' })
+    const out = execSync('df -h . 2>/dev/null | tail -1', { encoding: 'utf8', timeout: 3000 })
     const parts = out.trim().split(/\s+/)
     return parts[3] || 'n/a'
   } catch {
