@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Run CLI smoke tests
+        env:
+          NO_COLOR: "1"
+          PROXY_JOURNAL_HOME: ${{ runner.temp }}/pj-test
+        run: |
+          node bin/proxy-journal.mjs help
+          node bin/proxy-journal.mjs version
+          node bin/proxy-journal.mjs init "Proxy" "CI"
+          node bin/proxy-journal.mjs status
+          node bin/proxy-journal.mjs log smoke "ci run"
+          node bin/proxy-journal.mjs remember "CI" "Smoke test episode"
+          node bin/proxy-journal.mjs fact runner "github-actions"
+          node bin/proxy-journal.mjs open "Ship release" "public GitHub"
+          node bin/proxy-journal.mjs history 5
+          node bin/proxy-journal.mjs close "Ship release"
+          node bin/proxy-journal.mjs preserve
+          node bin/proxy-journal.mjs wake | head -25
+      - name: Unit tests
+        env:
+          NO_COLOR: "1"
+        run: node --test test/*.test.mjs
