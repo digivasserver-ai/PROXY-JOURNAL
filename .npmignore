@@ -1,0 +1,7 @@
+test/
+docs/roadmap/
+docs/FUTURE-*.md
+examples/
+.github/
+.gitignore
+*.test.mjs
