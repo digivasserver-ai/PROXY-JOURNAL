@@ -24,13 +24,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
-      - name: Run tests with stats
-        run: npm test -- --reporter spec
+      - name: Run CLI smoke tests
         env:
-          NO_COLOR: 1
+          NO_COLOR: "1"
+          PROXY_JOURNAL_HOME: ${{ runner.temp }}/pj-test
+        run: |
+          node bin/proxy-journal.mjs help
+          node bin/proxy-journal.mjs version
+          node bin/proxy-journal.mjs init "Proxy" "CI"
+          node bin/proxy-journal.mjs status
+          node bin/proxy-journal.mjs log smoke "ci run"
+          node bin/proxy-journal.mjs remember "CI" "Smoke test episode"
+          node bin/proxy-journal.mjs fact runner "github-actions"
+          node bin/proxy-journal.mjs open "Ship release" "public GitHub"
+          node bin/proxy-journal.mjs history 5
+          node bin/proxy-journal.mjs close "Ship release"
+          node bin/proxy-journal.mjs preserve
+          node bin/proxy-journal.mjs wake | head -25
+
+      - name: Unit tests
+        env:
+          NO_COLOR: "1"
+        run: node --test test/*.test.mjs
 
   publish:
     needs: test
