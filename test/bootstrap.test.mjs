@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs'
 import { tmpdir } from 'os'
-import { join, basename } from 'path'
+import { join } from 'path'
 import {
   ensureDirs,
   writeJson,
