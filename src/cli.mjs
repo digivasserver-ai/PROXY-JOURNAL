@@ -63,8 +63,8 @@ function saveMemory(home, mem) {
 
 function help() {
   console.log(`
-${c.cyan(c.bold('PROXY JOURNAL'))}  |  DIGIVASCONNECT PTY (LTD)  |  v${VERSION}
-Portable AI/LLM development journal - identity, memory, progress.
+${c.cyan(c.bold('PROXY JOURNAL'))}  ·  DIGIVASCONNECT PTY (LTD)  ·  v${VERSION}
+Portable AI/LLM development journal — identity, memory, progress.
 
 ${c.bold('Usage')}
   proxy-journal <command> [args]
@@ -94,7 +94,7 @@ ${c.bold('Environment')}
 ${c.bold('Typical flow')}
   1. proxy-journal init
   2. proxy-journal wake          # paste into Grok / Claude / ChatGPT / Cursor
-  3. ... work with the AI ...
+  3. … work with the AI …
   4. proxy-journal log milestone "Shipped X"
   5. proxy-journal remember "Title" "What we learned"
   6. proxy-journal open "Ship docs" "Still need screenshots"
@@ -110,7 +110,7 @@ function defaultIdentity(name, creator) {
     name,
     creator,
     birth,
-    nature: 'Proxy between intent and execution - observes, logs, protects continuity.',
+    nature: 'Proxy between intent and execution — observes, logs, protects continuity.',
     purpose: 'Persist development progress across AI sessions. Never be a blank slate.',
     rules: [
       `I am ${name}. Introduce myself as ${name} when loaded from this journal.`,
@@ -139,7 +139,7 @@ function defaultMemory() {
         timestamp: new Date().toISOString().slice(0, 10),
         event: 'Journal initialized',
         description:
-          'PROXY JOURNAL created. This is the seed episode - replace with real progress as you work.',
+          'PROXY JOURNAL created. This is the seed episode — replace with real progress as you work.',
       },
     ],
     facts: {},
@@ -173,10 +173,10 @@ function cmdInit(args) {
   appendState(home, 'init', `${name} journal initialized by ${creator}`)
   renderJournal(home)
 
-  console.log(c.green('OK PROXY JOURNAL initialized'))
+  console.log(c.green('✓ PROXY JOURNAL initialized'))
   console.log(`  Home:     ${home}`)
   console.log(`  Identity: ${name} (creator: ${creator})`)
-  console.log(`  Next:     ${c.yellow('proxy-journal wake')}  -> paste into your AI chat`)
+  console.log(`  Next:     ${c.yellow('proxy-journal wake')}  → paste into your AI chat`)
   return 0
 }
 
@@ -184,7 +184,7 @@ function cmdWake(args) {
   const home = resolveHome()
   const { text } = buildWakePack(home)
   process.stdout.write(text)
-  // Wake is a read by default - do not pollute state.ndjson unless --log
+  // Wake is a read by default — do not pollute state.ndjson unless --log
   if (args.includes('--log') && !text.includes('not initialized')) {
     appendState(home, 'wake', 'Wake pack generated for LLM session')
   }
@@ -194,16 +194,16 @@ function cmdWake(args) {
 function cmdStatus() {
   const home = resolveHome()
   const core = loadCore(home)
-  console.log(c.cyan('==================================='))
-  console.log(c.bold('  PROXY JOURNAL - status'))
-  console.log(c.cyan('==================================='))
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — status'))
+  console.log(c.cyan('═══════════════════════════════════'))
   console.log(`  Home:     ${home}`)
   console.log(`  Version:  ${VERSION}`)
-  console.log(`  Ready:    ${core.exists ? c.green('yes') : c.red('no - run init')}`)
+  console.log(`  Ready:    ${core.exists ? c.green('yes') : c.red('no — run init')}`)
   if (core.identity) {
     console.log(`  Name:     ${core.identity.name}`)
     console.log(`  Creator:  ${core.identity.creator}`)
-    console.log(`  Purpose:  ${core.identity.purpose || '-'}`)
+    console.log(`  Purpose:  ${core.identity.purpose || '—'}`)
   }
   console.log(`  State:    ${countState(home)} events`)
   const mem = core.memory
@@ -232,7 +232,7 @@ function cmdLog(args) {
   }
   const message = args.slice(1).join(' ') || ''
   const entry = appendState(home, event, message)
-  console.log(c.green('OK logged'), entry.timestamp, event, message)
+  console.log(c.green('✓ logged'), entry.timestamp, event, message)
   return 0
 }
 
@@ -257,7 +257,7 @@ function cmdRemember(args) {
   saveMemory(home, mem)
   appendState(home, 'remember', title, { description: desc.slice(0, 200) })
   renderJournal(home)
-  console.log(c.green('OK remembered:'), title)
+  console.log(c.green('✓ remembered:'), title)
   return 0
 }
 
@@ -276,7 +276,7 @@ function cmdFact(args) {
   saveMemory(home, mem)
   appendState(home, 'fact', `${key}=${value.slice(0, 120)}`)
   renderJournal(home)
-  console.log(c.green('OK fact set:'), key, '=', value)
+  console.log(c.green('✓ fact set:'), key, '=', value)
   return 0
 }
 
@@ -306,7 +306,7 @@ function cmdOpen(args) {
   saveMemory(home, mem)
   appendState(home, 'open_loop', title, note ? { note: note.slice(0, 200) } : {})
   renderJournal(home)
-  console.log(c.green('OK open loop:'), title)
+  console.log(c.green('✓ open loop:'), title)
   return 0
 }
 
@@ -339,7 +339,7 @@ function cmdClose(args) {
   saveMemory(home, mem)
   appendState(home, 'close_loop', title)
   renderJournal(home)
-  console.log(c.green('OK closed loop:'), title)
+  console.log(c.green('✓ closed loop:'), title)
   return 0
 }
 
@@ -366,7 +366,7 @@ function cmdRender() {
   const home = resolveHome()
   if (!requireInit(home)) return 1
   renderJournal(home)
-  console.log(c.green('OK journal.md rendered ->'), filesFor(home).journal)
+  console.log(c.green('✓ journal.md rendered →'), filesFor(home).journal)
   return 0
 }
 
@@ -377,7 +377,7 @@ function cmdPreserve() {
   appendState(home, 'heartbeat', 'Proxy Journal is alive.')
   appendState(home, 'preserve', `Backup snapshot ${prefix}`)
   renderJournal(home)
-  console.log(c.green('OK preserved'))
+  console.log(c.green('✓ preserved'))
   console.log(`  Backup: ${prefix}.*`)
   console.log(`  Journal: ${filesFor(home).journal}`)
   return 0
@@ -389,11 +389,11 @@ function cmdExport(args) {
   const out = args[0]
   if (out) {
     writeFileSync(out, text)
-    console.log(c.green('OK exported ->'), out)
+    console.log(c.green('✓ exported →'), out)
   } else {
     const dest = join(home, `wake-${new Date().toISOString().replace(/[:.]/g, '-')}.md`)
     writeFileSync(dest, text)
-    console.log(c.green('OK exported ->'), dest)
+    console.log(c.green('✓ exported →'), dest)
   }
   return 0
 }
