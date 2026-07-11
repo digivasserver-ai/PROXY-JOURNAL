@@ -8,10 +8,16 @@ npm install -g .          # from a clone
 # or: npm install -g proxy-journal   (when published to npm)
 
 proxy-journal init "Proxy" "YourName"
-proxy-journal wake | tee /tmp/wake.md
+proxy-journal wake | tee /tmp/wake.md          # hop pack (default, fewer tokens)
+# proxy-journal wake --full | tee /tmp/wake-full.md
+# proxy-journal wake --stats                   # print ~token estimate on stderr
 ```
 
 Open your AI product → paste `/tmp/wake.md` → continue work.
+
+### Why hop pack (default)
+
+Default `wake` is optimized for **model hops**: same continuity (rules, facts, open loops, recent work) without dumping full JSON + living journal into every chat. That saves tokens and keeps the model focused on *what to do next*, not re-reading an archive.
 
 ## End of session checklist
 

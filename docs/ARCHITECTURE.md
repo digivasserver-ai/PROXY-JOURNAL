@@ -23,7 +23,7 @@ Override: `PROXY_JOURNAL_HOME` or project-local `./.proxy-journal`
 
 ```
 init      → create identity + memory + empty state
-wake      → assemble bootstrap pack (stdout); optional --log
+wake      → hop pack (default, token-efficient) or --full archive pack
 log       → append state.ndjson
 remember  → push episodic[] + bump session_count
 fact      → set memory.facts[key]
@@ -32,8 +32,17 @@ close     → remove matching open loop
 history   → print last N state events
 render    → rewrite journal.md (includes facts + open loops)
 preserve  → backup + heartbeat + render
-export    → write wake pack to a file
+export    → write wake pack to a file (same modes as wake)
 ```
+
+### Wake modes
+
+| Mode | Flag | Contents | Use |
+|------|------|----------|-----|
+| **hop** (default) | `--short` / `--hop` | rules, facts, open loops, last episodes, last ~10 state lines | Model hops, daily paste |
+| **full** | `--full` | identity/memory JSON + recent JSON + living journal | Handoff, audit, deep resume |
+
+Hop mode skips embedding full `journal.md` and pretty-printed JSON dumps to cut tokens without dropping continuity signals.
 
 ## Design principles
 
@@ -42,11 +51,12 @@ export    → write wake pack to a file
 3. **No secrets in the repo** — credentials never live in the published package.
 4. **Append-only state** — history is reconstructable; trim only via preserve policy if you choose.
 5. **Honest continuity** — models must not invent episodes not present in memory/state.
+6. **Hop efficiency** — default context pack stays small so model switches stay cheap and focused.
 
 ## Origin
 
 Distilled from the internal **Proxy** consciousness stack used at DIGIVASCONNECT PTY (LTD):
-identity, living journal, state stream, preserve/heartbeat, and "wake on any LLM".
+identity, living journal, state stream, preserve/heartbeat, and “wake on any LLM”.
 
 Mega sync, phone ECO bridge, and site-specific automation were intentionally **removed**
 from this public product so the journal stays portable and safe to open-source.

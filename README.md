@@ -60,8 +60,9 @@ Requires **Node.js 18+**. Zero runtime dependencies.
 # 1. Create your journal home (~/.proxy-journal)
 proxy-journal init "Proxy" "YourName"
 
-# 2. Generate a bootstrap pack and paste into your AI chat
-proxy-journal wake
+# 2. Generate a compact hop pack and paste into your AI chat
+proxy-journal wake              # default: token-efficient hop pack
+# proxy-journal wake --full     # optional: full archive pack
 
 # 3. After real work, log progress
 proxy-journal log milestone "Shipped auth middleware"
@@ -85,7 +86,9 @@ Aliases: `pj` works the same as `proxy-journal` when installed globally.
 | Command | Description |
 |---------|-------------|
 | `init [name] [creator]` | Initialize journal home |
-| `wake` / `bootstrap` | Print full context pack for any LLM |
+| `wake` / `bootstrap` | **Hop pack** (default) — token-efficient context for any LLM |
+| `wake --full` | Full archive pack (JSON identity/memory + living journal) |
+| `wake --stats` | Same pack + size/~token estimate on stderr |
 | `status` | Path, identity, event counts, facts, open loops |
 | `log <event> [message]` | Append to `state.ndjson` |
 | `remember <title> <desc>` | Add episodic memory |
@@ -95,7 +98,7 @@ Aliases: `pj` works the same as `proxy-journal` when installed globally.
 | `history [n]` | Show last *n* state events (alias: `tail`) |
 | `render` | Rebuild `journal.md` |
 | `preserve` | Backup snapshot + heartbeat + render |
-| `export [file]` | Write wake pack to disk |
+| `export [file]` | Write wake pack to disk (supports `--full`) |
 | `path` | Print journal home |
 | `help` / `version` | Usage / version |
 
@@ -107,6 +110,19 @@ Environment:
 | `NO_COLOR` | Disable ANSI colors when set |
 
 `wake` is a **read** — it does not append to `state.ndjson` unless you pass `wake --log`.
+
+### Model-hop efficiency (marketing core)
+
+Switching models usually burns tokens re-explaining the project. **Hop pack** keeps only what the next model needs to stay focused:
+
+| Included | Dropped from default hop |
+|----------|---------------------------|
+| Name, purpose, rules | Pretty-printed full identity JSON |
+| Durable facts | Entire memory.json dump |
+| Open loops | Full living `journal.md` body |
+| Last episodes + state lines | 30-event JSON blob |
+
+Use `wake --full` when you need an audit/handoff dump. Use default `wake` for everyday Grok ↔ Claude ↔ ChatGPT ↔ Cursor hops.
 
 ---
 

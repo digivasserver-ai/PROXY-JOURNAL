@@ -1,0 +1,227 @@
+# DIGIVASCONNECT / PROXY JOURNAL — multi-rail timeline (machine-readable)
+# Rails: product | brand | company | automation
+# Status: pending | active | done | blocked | later
+# Automation: docs/FUTURE-TIMELINE-AUTOMATION.md
+# Brand + company: docs/FUTURE-BRAND-AND-COMPANY.md
+
+version: 2
+product: PROXY-JOURNAL
+org: DIGIVASCONNECT PTY (LTD)
+github: digivasserver-ai
+updated: "2026-07-11"
+
+# High-level company intent (for hop packs / automation context)
+intent:
+  product: "Portable AI continuity — hop models, later hop devices"
+  brand: "AAA visual identity + consistent DIGIVASCONNECT presence"
+  company: "Expand digivasserver-ai as a trusted open dev studio"
+  automation: "One timeline drives next tasks across all rails"
+
+phases:
+  # ─── PRODUCT RAIL ───────────────────────────────────────────
+  - id: "1.1"
+    track: product
+    name: Hop Pack ship
+    status: active
+    brief: docs/NEXT-PROJECT-1.1.md
+    goal: "Ship token-efficient default wake as v1.1.0"
+    tasks:
+      - id: A1
+        title: Review local 1.1 diff vs remote HEAD
+        status: done
+      - id: A2
+        title: Push 1.1.0 files to digivasserver-ai/PROXY-JOURNAL main
+        status: done
+      - id: A3
+        title: Confirm CI green (Node 22/24)
+        status: done
+      - id: A4
+        title: Tag v1.1.0 (optional)
+        status: pending
+      - id: A5
+        title: Clean clone smoke (wake hop + wake --full)
+        status: done
+      - id: B1
+        title: README hero for hop efficiency
+        status: pending
+      - id: B2
+        title: GitHub topics + pin PROXY-JOURNAL repo
+        status: pending
+      - id: B3
+        title: One public post with wake --stats
+        status: pending
+
+  - id: "1.2"
+    track: product
+    name: Brand kit in product repo
+    status: later
+    goal: "brand/ on GitHub for PROXY JOURNAL publicity"
+    depends_on: ["1.1"]
+    tasks:
+      - id: BR1
+        title: Push selected brand logos + social to repo
+        status: later
+      - id: BR2
+        title: README hop GIF or screenshots
+        status: later
+
+  - id: "1.3"
+    track: product
+    name: wake --tiny
+    status: later
+    goal: "Facts + open loops only for ultra-lean hops"
+    depends_on: ["1.1"]
+    tasks:
+      - id: T1
+        title: Implement wake --tiny mode
+        status: later
+
+  - id: "1.4"
+    track: product
+    name: Robustness
+    status: later
+    goal: "Atomic writes + state trim on preserve"
+    depends_on: ["1.1"]
+    tasks:
+      - id: R1
+        title: Atomic writeJson (temp + rename)
+        status: later
+      - id: R2
+        title: State trim policy on preserve
+        status: later
+
+  - id: "1.5"
+    track: product
+    name: npm publish
+    status: later
+    goal: "npm install -g proxy-journal"
+    depends_on: ["1.1"]
+    tasks:
+      - id: N1
+        title: Publish proxy-journal to npm
+        status: later
+
+  - id: "1.6"
+    track: product
+    name: Cloud journal sync (device hop)
+    status: later
+    brief: docs/FUTURE-CLOUD-SYNC.md
+    goal: "Termux ↔ laptop ↔ desktop same journal"
+    depends_on: ["1.1"]
+    tasks:
+      - id: C0
+        title: M0 cloud doc complete
+        status: done
+      - id: C1
+        title: Guide PROXY_JOURNAL_HOME on Syncthing/Nextcloud
+        status: later
+      - id: C2
+        title: sync push|pull CLI + one backend
+        status: later
+      - id: C3
+        title: Termux install + smoke notes
+        status: later
+
+  - id: "2.0"
+    track: product
+    name: Agent auto-log adapter
+    status: later
+    goal: "Optional agent hooks to log session events"
+    depends_on: ["1.1"]
+    tasks:
+      - id: AG1
+        title: Design adapter interface
+        status: later
+
+  # ─── BRAND AWARENESS RAIL ───────────────────────────────────
+  - id: "BA"
+    track: brand
+    name: Brand awareness
+    status: later
+    brief: docs/FUTURE-BRAND-AND-COMPANY.md
+    goal: "DIGIVASCONNECT / PROXY JOURNAL visible and consistent"
+    depends_on: ["1.1"]
+    tasks:
+      - id: BA0
+        title: Brand kit built locally (logos social letterheads)
+        status: done
+      - id: BA1
+        title: Publish brand kit (GitHub brand/ or media kit zip)
+        status: later
+      - id: BA2
+        title: digivasserver-ai avatar + banner + bio aligned
+        status: later
+      - id: BA3
+        title: Naming consistency DIGIVASCONNECT + digivasserver-ai everywhere
+        status: later
+      - id: BA4
+        title: README visual hero using brand lockup
+        status: later
+      - id: BA5
+        title: Launch post (X/LinkedIn/Dev.to) hop pack + brand
+        status: later
+      - id: BA6
+        title: Recurring presence cadence (weekly/biweekly note)
+        status: later
+      - id: BA7
+        title: One real letterhead use (outreach PDF)
+        status: later
+
+  # ─── COMPANY EXPANSION RAIL ─────────────────────────────────
+  - id: "CX"
+    track: company
+    name: DIGIVASCONNECT expansion
+    status: later
+    brief: docs/FUTURE-BRAND-AND-COMPANY.md
+    goal: "Grow digivasserver-ai as trusted open dev studio"
+    depends_on: ["1.1"]
+    tasks:
+      - id: CX1
+        title: Profile/org README — who we are products contact
+        status: later
+      - id: CX2
+        title: Flagship pin PROXY-JOURNAL + topics
+        status: later
+      - id: CX3
+        title: Second public micro-tool or template repo
+        status: later
+      - id: CX4
+        title: Standard new-repo template (LICENSE CI SECURITY brand)
+        status: later
+      - id: CX5
+        title: Optional hub site or link page for DIGIVASCONNECT
+        status: later
+      - id: CX6
+        title: Optional npm org / packages under digivas*
+        status: later
+      - id: CX7
+        title: Weekly focus always includes one brand or company task
+        status: later
+
+  # ─── AUTOMATION RAIL ────────────────────────────────────────
+  - id: "auto"
+    track: automation
+    name: Automate multi-rail timeline
+    status: later
+    brief: docs/FUTURE-TIMELINE-AUTOMATION.md
+    goal: "YAML next-task across product brand company + reminders"
+    depends_on: ["1.1"]
+    tasks:
+      - id: AUTO0
+        title: Seed TIMELINE.yml + roadmap-next + later project docs
+        status: done
+      - id: AUTO1
+        title: roadmap-next supports --track product|brand|company|automation
+        status: later
+      - id: AUTO2
+        title: Journal bridge open/close/fact per phase and track
+        status: later
+      - id: AUTO3
+        title: Weekly reminder spans product + brand + company next tasks
+        status: later
+      - id: AUTO4
+        title: roadmap-session.mjs wake + multi-rail focus block
+        status: later
+      - id: AUTO5
+        title: Balance rule — never only product tasks in weekly digest
+        status: later

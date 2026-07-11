@@ -1,6 +1,6 @@
 {
   "name": "proxy-journal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "PROXY JOURNAL — a portable development journal for AI/LLM sessions. Persist identity, memory, and progress across chats.",
   "type": "module",
   "bin": {

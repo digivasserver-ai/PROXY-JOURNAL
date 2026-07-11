@@ -2,6 +2,27 @@
 
 All notable changes to PROXY JOURNAL are documented in this file.
 
+## [1.1.0] — 2026-07-11
+
+### Added
+
+- **Hop pack (default `wake`)** — token-efficient context for model hops
+- `wake --full` — previous archive-style pack (JSON + living journal)
+- `wake --short` / `--hop` / `-s` — explicit hop mode
+- `wake --stats` — char + ~token estimate on stderr
+- `export` accepts the same wake flags
+
+### Changed
+
+- Default wake no longer dumps full identity/memory JSON or entire `journal.md`
+- Hop pack keeps: rules, facts, open loops, recent episodes, recent state lines
+- Docs/README market hop efficiency as the primary continuity flow
+
+### Design notes
+
+- Hop mode prioritizes **focus + fewer tokens** without dropping continuity signals
+- Full mode remains for handoff, audit, and deep resume
+
 ## [1.0.0] — 2026-07-11
 
 ### Added

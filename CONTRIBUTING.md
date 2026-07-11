@@ -6,7 +6,7 @@ Thanks for helping PROXY JOURNAL stay small and useful.
 
 1. Keep the core **dependency-free**.
 2. Never commit secrets, credentials, or real customer data.
-3. Prefer append-only state and honest memory over clever "AI personality" bloat.
+3. Prefer append-only state and honest memory over clever “AI personality” bloat.
 4. Wake packs must remain plain text (Markdown + JSON) so any model can load them.
 
 ## Dev setup

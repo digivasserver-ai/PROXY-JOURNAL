@@ -35,8 +35,28 @@ test('init → log → remember → wake', () => {
 
     r = run(home, ['wake'])
     assert.equal(r.status, 0)
-    assert.match(r.stdout, /Wake \/ Bootstrap Pack/)
+    assert.match(r.stdout, /Hop Pack/)
     assert.match(r.stdout, /built tests/)
+    // hop default must stay compact (no full JSON identity dump)
+    assert.ok(!r.stdout.includes('## Identity (JSON)'), 'default wake is hop, not full')
+
+    r = run(home, ['wake', '--full'])
+    assert.equal(r.status, 0)
+    assert.match(r.stdout, /Wake \/ Bootstrap Pack/)
+    assert.match(r.stdout, /Identity \(JSON\)/)
+
+    // hop pack should be smaller than full pack
+    const hop = run(home, ['wake'])
+    const full = run(home, ['wake', '--full'])
+    assert.ok(
+      hop.stdout.length < full.stdout.length,
+      `hop (${hop.stdout.length}) should be < full (${full.stdout.length})`
+    )
+
+    // --stats prints estimate on stderr, not stdout pollution
+    r = run(home, ['wake', '--stats'])
+    assert.equal(r.status, 0)
+    assert.match(r.stderr, /tokens/)
 
     // wake should not pollute state by default
     const state = readFileSync(join(home, 'state.ndjson'), 'utf8')

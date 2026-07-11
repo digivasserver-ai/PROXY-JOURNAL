@@ -71,7 +71,7 @@ ${c.bold('Usage')}
 
 ${c.bold('Commands')}
   ${c.yellow('init')} [name] [creator]     Initialize journal home (default: Proxy / Operator)
-  ${c.yellow('wake')} | ${c.yellow('bootstrap')}       Print context pack for any LLM chat (paste this)
+  ${c.yellow('wake')} | ${c.yellow('bootstrap')}       Hop pack for any LLM (token-efficient, default)
   ${c.yellow('status')}                   Show identity, counts, path
   ${c.yellow('log')} <event> [message]    Append a state.ndjson event
   ${c.yellow('remember')} <title> <desc>  Add episodic memory entry
@@ -86,6 +86,14 @@ ${c.bold('Commands')}
   ${c.yellow('help')}                     This screen
   ${c.yellow('version')}                  Print version
 
+${c.bold('Wake / hop flags')}
+  (default)            Compact hop pack — fewer tokens, same focus
+  --full               Full archive pack (JSON + living journal)
+  --short | --hop | -s Explicit hop pack (same as default)
+  --stats              Print size/token estimate on stderr
+  --log                Also append a wake event to state.ndjson
+  --no-render          Skip journal.md rebuild (full mode only)
+
 ${c.bold('Environment')}
   PROXY_JOURNAL_HOME   Override journal directory
                        (default: ~/.proxy-journal or ./.proxy-journal)
@@ -93,12 +101,14 @@ ${c.bold('Environment')}
 
 ${c.bold('Typical flow')}
   1. proxy-journal init
-  2. proxy-journal wake          # paste into Grok / Claude / ChatGPT / Cursor
+  2. proxy-journal wake          # hop pack → paste into any model
   3. … work with the AI …
   4. proxy-journal log milestone "Shipped X"
   5. proxy-journal remember "Title" "What we learned"
   6. proxy-journal open "Ship docs" "Still need screenshots"
   7. proxy-journal preserve
+
+${c.bold('Model hop')}  wake (short) → paste → switch Grok/Claude/ChatGPT/Cursor without re-briefing
 
 ${c.dim('https://github.com/digivasserver-ai/PROXY-JOURNAL')}
 `)
@@ -180,13 +190,41 @@ function cmdInit(args) {
   return 0
 }
 
+/** Parse wake/export flags. Default mode is short (hop-efficient). */
+function parseWakeOpts(args) {
+  const full = args.includes('--full')
+  const short =
+    args.includes('--short') || args.includes('--hop') || args.includes('-s')
+  // --full wins if both present
+  const mode = full ? 'full' : 'short'
+  void short // accepted alias for default; keeps CLI discoverable
+  const refreshJournal = args.includes('--no-render') ? false : undefined
+  return {
+    mode,
+    log: args.includes('--log'),
+    stats: args.includes('--stats'),
+    refreshJournal,
+  }
+}
+
 function cmdWake(args) {
   const home = resolveHome()
-  const { text } = buildWakePack(home)
+  const opts = parseWakeOpts(args)
+  const { text, stats } = buildWakePack(home, {
+    mode: opts.mode,
+    refreshJournal: opts.refreshJournal,
+  })
   process.stdout.write(text)
+  if (opts.stats && stats) {
+    console.error(
+      c.dim(
+        `wake mode=${stats.mode}  chars=${stats.chars}  ~${stats.tokens} tokens (est.)`
+      )
+    )
+  }
   // Wake is a read by default — do not pollute state.ndjson unless --log
-  if (args.includes('--log') && !text.includes('not initialized')) {
-    appendState(home, 'wake', 'Wake pack generated for LLM session')
+  if (opts.log && !text.includes('not initialized')) {
+    appendState(home, 'wake', `Wake pack generated (${opts.mode})`)
   }
   return 0
 }
@@ -385,15 +423,25 @@ function cmdPreserve() {
 
 function cmdExport(args) {
   const home = resolveHome()
-  const { text } = buildWakePack(home)
-  const out = args[0]
+  // flags may appear before/after path; path is first non-flag arg
+  const opts = parseWakeOpts(args)
+  const out = args.find((a) => a && !a.startsWith('-'))
+  const { text, stats } = buildWakePack(home, {
+    mode: opts.mode,
+    refreshJournal: opts.refreshJournal,
+  })
   if (out) {
     writeFileSync(out, text)
-    console.log(c.green('✓ exported →'), out)
+    console.log(c.green('✓ exported →'), out, c.dim(`(${stats.mode}, ~${stats.tokens} tokens)`))
   } else {
-    const dest = join(home, `wake-${new Date().toISOString().replace(/[:.]/g, '-')}.md`)
+    const dest = join(home, `wake-${stats.mode}-${new Date().toISOString().replace(/[:.]/g, '-')}.md`)
     writeFileSync(dest, text)
-    console.log(c.green('✓ exported →'), dest)
+    console.log(c.green('✓ exported →'), dest, c.dim(`(${stats.mode}, ~${stats.tokens} tokens)`))
+  }
+  if (opts.stats) {
+    console.error(
+      c.dim(`export mode=${stats.mode}  chars=${stats.chars}  ~${stats.tokens} tokens (est.)`)
+    )
   }
   return 0
 }
