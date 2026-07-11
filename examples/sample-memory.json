@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "last_updated": "2026-07-11T00:00:00.000Z",
+    "session_count": 3,
+    "product": "PROXY JOURNAL",
+    "org": "DIGIVASCONNECT PTY (LTD)"
+  },
+  "episodic": [
+    {
+      "timestamp": "2026-05-25",
+      "event": "Birth of the journal idea",
+      "description": "Realized AI chats forget everything. Started logging identity + state to disk so work survives session resets."
+    },
+    {
+      "timestamp": "2026-06-19",
+      "event": "Reconstruction after data loss",
+      "description": "Recovered the journal pattern from fragments after storage failure. Confirmed that append-only state + episodic memory is enough to rehydrate an agent."
+    },
+    {
+      "timestamp": "2026-07-11",
+      "event": "Public PROXY JOURNAL release",
+      "description": "Stripped fluff (cloud keys, site-specific automation) and published a clean portable journal for any LLM under DIGIVASCONNECT PTY (LTD)."
+    }
+  ],
+  "facts": {
+    "stack": "Node.js 18+, filesystem only",
+    "license": "MIT"
+  },
+  "open_loops": [
+    "Optional npm publish after GitHub traction",
+    "Optional cloud sync plugin (bring-your-own backend)"
+  ]
+}

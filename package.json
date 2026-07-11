@@ -1,0 +1,50 @@
+{
+  "name": "proxy-journal",
+  "version": "1.0.0",
+  "description": "PROXY JOURNAL — a portable development journal for AI/LLM sessions. Persist identity, memory, and progress across chats.",
+  "type": "module",
+  "bin": {
+    "proxy-journal": "./bin/proxy-journal.mjs",
+    "pj": "./bin/proxy-journal.mjs"
+  },
+  "scripts": {
+    "start": "node bin/proxy-journal.mjs",
+    "test": "node --test test/*.test.mjs",
+    "wake": "node bin/proxy-journal.mjs wake"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "journal",
+    "memory",
+    "bootstrap",
+    "devtools",
+    "proxy",
+    "digivasconnect"
+  ],
+  "author": "DIGIVASCONNECT PTY (LTD)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digivasserver-ai/PROXY-JOURNAL.git"
+  },
+  "bugs": {
+    "url": "https://github.com/digivasserver-ai/PROXY-JOURNAL/issues"
+  },
+  "homepage": "https://github.com/digivasserver-ai/PROXY-JOURNAL#readme",
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "examples/",
+    "docs/",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ]
+}
