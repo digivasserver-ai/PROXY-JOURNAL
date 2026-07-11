@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { join, basename } from 'path'
 import {
   ensureDirs,
   writeJson,
@@ -142,14 +142,14 @@ test('store: snapshotBackup creates timestamped copies', () => {
     writeFileSync(files.state, '{"event":"test"}\n')
 
     const prefix = snapshotBackup(home, 'backup')
-    assert.ok(prefix, 'snapshotBackup returns a prefix')
-    assert.ok(prefix.includes('backup'), `prefix should include 'backup': ${prefix}`)
+    assert.ok(prefix, 'snapshotBackup returns a non-empty prefix')
+    assert.ok(prefix.includes('backup'), `prefix should contain 'backup': ${prefix}`)
     
-    // Check that backup files were actually created
+    // Check that backup files were created with correct naming
     const identityBackup = `${prefix}.identity.json`
     assert.ok(existsSync(identityBackup), `backup file should exist: ${identityBackup}`)
     const content = readFileSync(identityBackup, 'utf8')
-    assert.ok(content.includes('Test'), 'backup should contain original data')
+    assert.ok(content.includes('Test'), 'backup content should include original data')
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
