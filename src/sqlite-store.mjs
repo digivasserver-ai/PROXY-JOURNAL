@@ -315,6 +315,199 @@ export function getStats(home) {
   }
 }
 
+// ── Advanced query API (v1.3.0) ──
+
+/**
+ * Search across all tables for a term.
+ * Returns results grouped by table.
+ */
+export function searchAll(home, term) {
+  const safeTerm = esc(term).replace(/%/g, '\\%').replace(/_/g, '\\_')
+  const results = {}
+
+  // Search identity
+  results.identity = query(
+    home,
+    `SELECT key, value FROM identity WHERE value LIKE '%${safeTerm}%' OR key LIKE '%${safeTerm}%'`
+  )
+
+  // Search memory
+  results.memory = query(
+    home,
+    `SELECT category, key, value, context FROM memory WHERE value LIKE '%${safeTerm}%' OR key LIKE '%${safeTerm}%'`
+  )
+
+  // Search state events
+  results.state_events = query(
+    home,
+    `SELECT timestamp, event, message FROM state_events WHERE message LIKE '%${safeTerm}%' OR event LIKE '%${safeTerm}%'`
+  )
+
+  // Search audit log
+  results.audit_log = query(
+    home,
+    `SELECT timestamp, command, result, details FROM audit_log WHERE details LIKE '%${safeTerm}%' OR command LIKE '%${safeTerm}%'`
+  )
+
+  // Search security events
+  results.security_events = query(
+    home,
+    `SELECT timestamp, event_type, severity, details FROM security_events WHERE details LIKE '%${safeTerm}%' OR event_type LIKE '%${safeTerm}%'`
+  )
+
+  return results
+}
+
+/**
+ * Query state events with time filtering.
+ * @param {string} home
+ * @param {object} opts - { since, until, event, limit }
+ */
+export function queryStateEvents(home, opts = {}) {
+  const conditions = []
+  if (opts.since) conditions.push(`timestamp >= '${esc(opts.since)}'`)
+  if (opts.until) conditions.push(`timestamp <= '${esc(opts.until)}'`)
+  if (opts.event) conditions.push(`event = '${esc(opts.event)}'`)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limit = Math.max(1, Math.min(10000, Number(opts.limit) || 50))
+  return query(
+    home,
+    `SELECT timestamp, event, message, extra FROM state_events ${where} ORDER BY id DESC LIMIT ${limit}`
+  )
+}
+
+/**
+ * Query audit log with filtering.
+ */
+export function queryAuditLog(home, opts = {}) {
+  const conditions = []
+  if (opts.since) conditions.push(`timestamp >= '${esc(opts.since)}'`)
+  if (opts.until) conditions.push(`timestamp <= '${esc(opts.until)}'`)
+  if (opts.command) conditions.push(`command = '${esc(opts.command)}'`)
+  if (opts.result) conditions.push(`result = '${esc(opts.result)}'`)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limit = Math.max(1, Math.min(10000, Number(opts.limit) || 50))
+  return query(
+    home,
+    `SELECT timestamp, command, args_hash, hostname, result, details FROM audit_log ${where} ORDER BY id DESC LIMIT ${limit}`
+  )
+}
+
+/**
+ * Query security events with severity filtering.
+ */
+export function querySecurityEvents(home, opts = {}) {
+  const conditions = []
+  if (opts.since) conditions.push(`timestamp >= '${esc(opts.since)}'`)
+  if (opts.until) conditions.push(`timestamp <= '${esc(opts.until)}'`)
+  if (opts.severity) conditions.push(`severity = '${esc(opts.severity)}'`)
+  if (opts.eventType) conditions.push(`event_type = '${esc(opts.eventType)}'`)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limit = Math.max(1, Math.min(10000, Number(opts.limit) || 50))
+  return query(
+    home,
+    `SELECT timestamp, event_type, severity, details, source FROM security_events ${where} ORDER BY id DESC LIMIT ${limit}`
+  )
+}
+
+/**
+ * Get table row counts for all tables.
+ */
+export function getTableCounts(home) {
+  const counts = {}
+  for (const table of ALLOWED_TABLES) {
+    const rows = query(home, `SELECT COUNT(*) as c FROM ${table}`)
+    counts[table] = rows.length ? rows[0].c : 0
+  }
+  return counts
+}
+
+// ── Export functions (v1.3.0) ──
+
+/**
+ * Export a table to JSON string.
+ * @param {string} home
+ * @param {string} table - must be in ALLOWED_TABLES
+ * @param {object} opts - { since, until, limit }
+ */
+export function exportTableJSON(home, table, opts = {}) {
+  if (!ALLOWED_TABLES.has(table)) return null
+  const conditions = []
+  if (opts.since) conditions.push(`created_at >= '${esc(opts.since)}'`)
+  if (opts.until) conditions.push(`created_at <= '${esc(opts.until)}'`)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limit = Math.max(1, Math.min(100000, Number(opts.limit) || 10000))
+  // identity table uses 'key' as PK, not 'id'
+  const orderCol = table === 'identity' ? 'key' : 'id'
+  const rows = query(home, `SELECT * FROM ${table} ${where} ORDER BY ${orderCol} DESC LIMIT ${limit}`)
+  return JSON.stringify(rows, null, 2)
+}
+
+/**
+ * Export a table to CSV string.
+ */
+export function exportTableCSV(home, table, opts = {}) {
+  if (!ALLOWED_TABLES.has(table)) return null
+  const conditions = []
+  if (opts.since) conditions.push(`created_at >= '${esc(opts.since)}'`)
+  if (opts.until) conditions.push(`created_at <= '${esc(opts.until)}'`)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limit = Math.max(1, Math.min(100000, Number(opts.limit) || 10000))
+  const orderCol = table === 'identity' ? 'key' : 'id'
+  const rows = query(home, `SELECT * FROM ${table} ${where} ORDER BY ${orderCol} DESC LIMIT ${limit}`)
+  if (!rows.length) return ''
+  const headers = Object.keys(rows[0])
+  const lines = [headers.join(',')]
+  for (const row of rows) {
+    const values = headers.map((h) => {
+      const v = String(row[h] ?? '')
+      // Escape CSV: wrap in quotes if contains comma, quote, or newline
+      if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+        return `"${v.replace(/"/g, '""')}"`
+      }
+      return v
+    })
+    lines.push(values.join(','))
+  }
+  return lines.join('\n')
+}
+
+// ── Backup rotation (v1.3.0) ──
+
+import { copyFileSync, readdirSync, statSync, unlinkSync } from 'fs'
+
+/**
+ * Backup the SQLite database with timestamped name.
+ * Keeps the last N backups (default 5).
+ */
+export function backupDatabase(home, keep = 5) {
+  const src = dbPath(home)
+  if (!existsSync(src)) return null
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const backupDir = join(home, 'backups')
+  if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true })
+
+  const dest = join(backupDir, `proxy-journal-${timestamp}.db`)
+  copyFileSync(src, dest)
+
+  // Rotate — keep only the last N backups
+  try {
+    const files = readdirSync(backupDir)
+      .filter((f) => f.endsWith('.db'))
+      .map((f) => ({ name: f, time: statSync(join(backupDir, f)).mtimeMs }))
+      .sort((a, b) => b.time - a.time)
+
+    for (const file of files.slice(keep)) {
+      unlinkSync(join(backupDir, file.name))
+    }
+  } catch {
+    // Best effort rotation
+  }
+
+  return dest
+}
+
 /**
  * Migrate existing JSON/NDJSON files into SQLite.
  * Call after initDatabase(). Non-destructive to source files.

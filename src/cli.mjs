@@ -20,6 +20,14 @@ import {
   migrateFromFiles,
   getStats,
   logSecurityEvent,
+  searchAll,
+  queryStateEvents,
+  queryAuditLog,
+  querySecurityEvents,
+  getTableCounts,
+  exportTableJSON,
+  exportTableCSV,
+  backupDatabase,
 } from './sqlite-store.mjs'
 import {
   recordIntegrity,
@@ -116,6 +124,13 @@ ${c.bold('Security')}
   ${c.yellow('audit')} [n]                Show audit log (last n entries)
   ${c.yellow('audit --suspicious')}       Detect anomalies in audit log
   ${c.yellow('migrate')}                  Import JSON/NDJSON files into SQLite
+
+${c.bold('Query & Export')}
+  ${c.yellow('search')} <term>            Search across all tables for a term
+  ${c.yellow('query')} <table> [opts]     Query a table (state_events, audit_log, security_events)
+  ${c.yellow('counts')}                   Show row counts for all tables
+  ${c.yellow('export-db')} <table> [file] Export table to JSON or CSV (.json/.csv extension)
+  ${c.yellow('backup-db')}               Backup SQLite database with rotation
 
 ${c.bold('Other')}
   ${c.yellow('help')}                     This screen
@@ -749,6 +764,173 @@ function cmdMigrate() {
   return 0
 }
 
+// ── Query & Export commands (v1.3.0) ──
+
+function cmdSearch(args) {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+  const term = args.join(' ')
+  if (!term) {
+    console.error('Usage: proxy-journal search <term>')
+    return 1
+  }
+
+  console.log(c.cyan(`═══ Search: "${term}" ═══`))
+  const results = searchAll(home, term)
+  let total = 0
+
+  for (const [table, rows] of Object.entries(results)) {
+    if (rows.length > 0) {
+      console.log(`\n  ${c.bold(table)} (${rows.length} result${rows.length > 1 ? 's' : ''}):`)
+      for (const row of rows.slice(0, 10)) {
+        const preview = Object.values(row).join(' | ').slice(0, 100)
+        console.log(`    ${c.dim(preview)}`)
+      }
+      if (rows.length > 10) console.log(`    ${c.dim(`... and ${rows.length - 10} more`)}`)
+      total += rows.length
+    }
+  }
+
+  if (total === 0) console.log(c.dim('  No results found.'))
+  else console.log(`\n  ${c.green(`${total} total result${total > 1 ? 's' : ''}`)}`)
+
+  auditLog(home, 'search', [term], 'ok', `results=${total}`)
+  return 0
+}
+
+function cmdQuery(args) {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+
+  const table = args[0]
+  if (!table) {
+    console.error('Usage: proxy-journal query <table> [--since DATE] [--until DATE] [--event TYPE] [--limit N]')
+    console.error('Tables: state_events, audit_log, security_events, identity, memory, integrity_hashes')
+    return 1
+  }
+
+  // Parse flags
+  const opts = {}
+  for (let i = 1; i < args.length; i++) {
+    if (args[i] === '--since' && args[i + 1]) opts.since = args[++i]
+    else if (args[i] === '--until' && args[i + 1]) opts.until = args[++i]
+    else if (args[i] === '--event' && args[i + 1]) opts.event = args[++i]
+    else if (args[i] === '--command' && args[i + 1]) opts.command = args[++i]
+    else if (args[i] === '--result' && args[i + 1]) opts.result = args[++i]
+    else if (args[i] === '--severity' && args[i + 1]) opts.severity = args[++i]
+    else if (args[i] === '--type' && args[i + 1]) opts.eventType = args[++i]
+    else if (args[i] === '--limit' && args[i + 1]) opts.limit = parseInt(args[++i], 10)
+  }
+
+  let rows
+  if (table === 'state_events') rows = queryStateEvents(home, opts)
+  else if (table === 'audit_log') rows = queryAuditLog(home, opts)
+  else if (table === 'security_events') rows = querySecurityEvents(home, opts)
+  else {
+    console.error(c.red(`Query supports: state_events, audit_log, security_events`))
+    return 1
+  }
+
+  console.log(c.cyan(`═══ ${table} (${rows.length} rows) ═══`))
+  for (const row of rows) {
+    const ts = row.timestamp || ''
+    const summary = Object.entries(row)
+      .filter(([k]) => k !== 'timestamp' && k !== 'extra')
+      .map(([k, v]) => `${k}=${v}`)
+      .join('  ')
+    console.log(`  ${c.dim(ts)}  ${summary}`)
+  }
+  return 0
+}
+
+function cmdCounts() {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — table counts'))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  const counts = getTableCounts(home)
+  let total = 0
+  for (const [table, count] of Object.entries(counts)) {
+    console.log(`  ${c.yellow(table.padEnd(20))} ${count}`)
+    total += count
+  }
+  console.log(`  ${'─'.repeat(30)}`)
+  console.log(`  ${c.bold('total'.padEnd(20))} ${total}`)
+  return 0
+}
+
+function cmdExportDb(args) {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+
+  const table = args[0]
+  const outFile = args[1]
+  if (!table) {
+    console.error('Usage: proxy-journal export-db <table> [output-file]')
+    console.error('Tables: identity, memory, state_events, audit_log, integrity_hashes, security_events')
+    return 1
+  }
+
+  // Determine format from extension or default to JSON
+  const isCSV = outFile && outFile.endsWith('.csv')
+  const data = isCSV ? exportTableCSV(home, table) : exportTableJSON(home, table)
+
+  if (data === null) {
+    console.error(c.red(`Invalid table: ${table}`))
+    return 1
+  }
+
+  if (outFile) {
+    writeFileSync(outFile, data)
+    console.log(c.green(`✓ Exported ${table} → ${outFile}`))
+    console.log(c.dim(`  ${isCSV ? 'CSV' : 'JSON'} format`))
+  } else {
+    process.stdout.write(data + '\n')
+  }
+
+  auditLog(home, 'export-db', [table, outFile || 'stdout'], 'ok', `format=${isCSV ? 'csv' : 'json'}`)
+  return 0
+}
+
+function cmdBackupDb() {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — database backup'))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  const dest = backupDatabase(home, 5)
+  if (dest) {
+    console.log(c.green(`✓ Backup created: ${dest}`))
+    console.log(c.dim('  Rotation: keeping last 5 backups'))
+  } else {
+    console.error(c.red('  No database found to backup'))
+    return 1
+  }
+
+  auditLog(home, 'backup-db', [], 'ok', `dest=${dest}`)
+  return 0
+}
+
 export function run(argv) {
   const args = argv.slice(2)
   const cmd = (args[0] || 'help').toLowerCase()
@@ -797,6 +979,16 @@ export function run(argv) {
       return cmdAudit(rest)
     case 'migrate':
       return cmdMigrate()
+    case 'search':
+      return cmdSearch(rest)
+    case 'query':
+      return cmdQuery(rest)
+    case 'counts':
+      return cmdCounts()
+    case 'export-db':
+      return cmdExportDb(rest)
+    case 'backup-db':
+      return cmdBackupDb()
     case 'help':
     case '-h':
     case '--help':

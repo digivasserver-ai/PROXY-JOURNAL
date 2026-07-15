@@ -1,44 +1,63 @@
 # Changelog
 
-All notable changes to PROXY JOURNAL are documented in this file.
+## v1.3.0 — July 16, 2026
 
-## [1.1.0] — 2026-07-11
+### New: Query & Export API
+- `searchAll(term)` — Cross-table search across identity, memory, state_events, audit_log, security_events
+- `queryStateEvents(opts)` — Filter by event type, time range, limit
+- `queryAuditLog(opts)` — Filter by command, result, time range
+- `querySecurityEvents(opts)` — Filter by severity, event type, time range
+- `getTableCounts()` — Row counts for all tables
+- `exportTableJSON(table, opts)` — Export any table to JSON
+- `exportTableCSV(table, opts)` — Export any table to CSV with proper escaping
 
-### Added
+### New: CLI Commands
+- `proxy-journal search <term>` — Search across all tables
+- `proxy-journal query <table> [opts]` — Query with filters (--since, --until, --event, --severity, --limit)
+- `proxy-journal counts` — Show row counts for all tables
+- `proxy-journal export-db <table> [file]` — Export to JSON or CSV (auto-detects by extension)
+- `proxy-journal backup-db` — Backup SQLite database with rotation (keeps last 5)
 
-- **Hop pack (default `wake`)** — token-efficient context for model hops
-- `wake --full` — previous archive-style pack (JSON + living journal)
-- `wake --short` / `--hop` / `-s` — explicit hop mode
-- `wake --stats` — char + ~token estimate on stderr
-- `export` accepts the same wake flags
+### New: Database Backup Rotation
+- `backupDatabase(home, keep)` — Creates timestamped backups in `backups/` directory
+- Automatic rotation — keeps only the last N backups (default 5)
+- Called automatically during `proxy-journal preserve`
 
-### Changed
+### Security (continued from v1.2.1)
+- `snippet_injection` pattern category — Detects ScaDS RAG template, `<snippet>`/`<context>` wrappers, attribution bypass
+- `unicode_obfuscation` pattern category — Detects RTL override, zero-width characters, invisible formatting
+- 11/11 attack payloads from confirmed DevStation hack detected
+- 63 unit tests (now 77 with advanced queries)
 
-- Default wake no longer dumps full identity/memory JSON or entire `journal.md`
-- Hop pack keeps: rules, facts, open loops, recent episodes, recent state lines
-- Docs/README market hop efficiency as the primary continuity flow
+### Attack Response
+- Security advisory posted to JustVugg/colibri#19
+- MCP disclosure posted to alphaXiv/feedback#337
+- ScaDS disclosure posted to ScaDSAILLLE/meetup-workshop-mcp#1
+- GitHub abuse report filed against ZacharyZcR
 
-### Design notes
+---
 
-- Hop mode prioritizes **focus + fewer tokens** without dropping continuity signals
-- Full mode remains for handoff, audit, and deep resume
+## v1.2.1 — July 16, 2026
 
-## [1.0.0] — 2026-07-11
+### Security
+- Added `snippet_injection` pattern category (7 patterns)
+- Added `unicode_obfuscation` pattern category (8 patterns)
+- Penetration test against confirmed attack: 11/11 payloads caught
 
-### Added
+---
 
-- Initial public release by **DIGIVASCONNECT PTY (LTD)**
-- CLI: `init`, `wake`/`bootstrap`, `status`, `log`, `remember`, `render`, `preserve`, `export`, `path`, `help`, `version`
-- `fact <key> <value>` for durable truths in `memory.facts`
-- `open` / `close` for unfinished work (`memory.open_loops`)
-- `history [n]` (alias `tail`) to inspect recent `state.ndjson` events
-- Living `journal.md` render with facts + open loops
-- Wake pack for any LLM (Markdown + JSON, no vendor lock-in)
-- Timestamped `preserve` backups under `backup/`
-- Zero runtime dependencies; Node.js 18+
-- GitHub Actions CI (Node 18 / 20 / 22)
-- `NO_COLOR` support; version read from `package.json`
+## v1.2.0 — July 15, 2026
 
-### Design notes
+### Security
+- SHA-256 hash chain integrity verification
+- Prompt injection scanner (6 categories)
+- Append-only audit trail with anomaly detection
+- SQLite dual-write storage
+- Secure wake pack generation with fingerprinting
 
-- `wake` is a **read** by default (does not append to state). Use `wake --log` if you want a wake event recorded.
+### CLI
+- `verify` — Integrity check
+- `secure-wake` — Security-scanned wake pack
+- `scan` — File/journal injection scan
+- `audit` — Audit log viewer
+- `migrate` — JSON/NDJSON to SQLite migration
