@@ -14,6 +14,31 @@ import {
 } from './store.mjs'
 import { renderJournal } from './journal.mjs'
 import { buildWakePack } from './bootstrap.mjs'
+import {
+  initDatabase,
+  isInitialized as dbReady,
+  migrateFromFiles,
+  getStats,
+  logSecurityEvent,
+} from './sqlite-store.mjs'
+import {
+  recordIntegrity,
+  fullIntegrityCheck,
+  generateFingerprint,
+  verifyFingerprint,
+} from './integrity.mjs'
+import {
+  auditLog,
+  getAuditLog,
+  detectSuspicious,
+  auditSummary,
+} from './audit.mjs'
+import {
+  scanText,
+  scanWakePack,
+  securityReport,
+  buildSecureWakePack,
+} from './security.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
@@ -80,9 +105,19 @@ ${c.bold('Commands')}
   ${c.yellow('close')} <title>            Close a matching open loop
   ${c.yellow('history')} [n]              Show last n state events (default 20)
   ${c.yellow('render')}                   Rebuild journal.md from data
-  ${c.yellow('preserve')}                 Snapshot backup + render + heartbeat
+  ${c.yellow('preserve')}                 Snapshot backup + render + heartbeat + integrity hash
   ${c.yellow('export')} [file]            Write wake pack to a file
   ${c.yellow('path')}                     Print journal home
+
+${c.bold('Security')}
+  ${c.yellow('verify')}                   Verify file integrity hash chain
+  ${c.yellow('secure-wake')}              Generate wake pack with security scan + fingerprint
+  ${c.yellow('scan')} [file]              Scan file for prompt injection patterns
+  ${c.yellow('audit')} [n]                Show audit log (last n entries)
+  ${c.yellow('audit --suspicious')}       Detect anomalies in audit log
+  ${c.yellow('migrate')}                  Import JSON/NDJSON files into SQLite
+
+${c.bold('Other')}
   ${c.yellow('help')}                     This screen
   ${c.yellow('version')}                  Print version
 
@@ -181,6 +216,13 @@ function cmdInit(args) {
   })
 
   appendState(home, 'init', `${name} journal initialized by ${creator}`)
+
+  // Initialize SQLite database and record integrity hashes
+  initDatabase(home)
+  if (dbReady(home)) {
+    recordIntegrity(home)
+  }
+
   renderJournal(home)
 
   console.log(c.green('✓ PROXY JOURNAL initialized'))
@@ -232,12 +274,14 @@ function cmdWake(args) {
 function cmdStatus() {
   const home = resolveHome()
   const core = loadCore(home)
+  const sqliteReady = dbReady(home)
   console.log(c.cyan('═══════════════════════════════════'))
   console.log(c.bold('  PROXY JOURNAL — status'))
   console.log(c.cyan('═══════════════════════════════════'))
   console.log(`  Home:     ${home}`)
   console.log(`  Version:  ${VERSION}`)
   console.log(`  Ready:    ${core.exists ? c.green('yes') : c.red('no — run init')}`)
+  console.log(`  SQLite:   ${sqliteReady ? c.green('active') : c.yellow('not migrated')}`)
   if (core.identity) {
     console.log(`  Name:     ${core.identity.name}`)
     console.log(`  Creator:  ${core.identity.creator}`)
@@ -256,6 +300,10 @@ function cmdStatus() {
     console.log(`  Open:     ${loops} loop(s)`)
   }
   console.log(`  Journal:  ${core.journal ? `${core.journal.length} chars` : 'missing'}`)
+  if (sqliteReady) {
+    const stats = getStats(home)
+    console.log(`  DB:       ${stats.identity} identity / ${stats.memory} memory / ${stats.audit_log} audit / ${stats.security_events} security`)
+  }
   console.log('')
   return core.exists ? 0 : 1
 }
@@ -414,6 +462,13 @@ function cmdPreserve() {
   const prefix = snapshotBackup(home, 'preserve')
   appendState(home, 'heartbeat', 'Proxy Journal is alive.')
   appendState(home, 'preserve', `Backup snapshot ${prefix}`)
+
+  // Record integrity hashes after preserve
+  if (dbReady(home)) {
+    const { recorded } = recordIntegrity(home)
+    auditLog(home, 'preserve', [], 'ok', `backup=${prefix} hashes=${recorded}`)
+  }
+
   renderJournal(home)
   console.log(c.green('✓ preserved'))
   console.log(`  Backup: ${prefix}.*`)
@@ -448,6 +503,249 @@ function cmdExport(args) {
 
 function cmdPath() {
   console.log(resolveHome())
+  return 0
+}
+
+// ── Security commands ──
+
+function cmdVerify() {
+  const home = resolveHome()
+  if (!requireInit(home)) return 1
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — integrity verify'))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  const report = fullIntegrityCheck(home)
+
+  for (const r of report.results) {
+    const icon =
+      r.status === 'ok' ? c.green('✓') :
+      r.status === 'tampered' ? c.red('✗ TAMPERED') :
+      r.status === 'chain-broken' ? c.red('✗ CHAIN BROKEN') :
+      r.status === 'missing' ? c.yellow('? MISSING') :
+      c.yellow('? UNTRACKED')
+    console.log(`  ${icon}  ${r.file}`)
+    if (r.currentHash) {
+      console.log(`       hash: ${r.currentHash.slice(0, 16)}...`)
+    }
+    if (r.lastRecordedHash && r.status !== 'ok') {
+      console.log(`       expected: ${r.lastRecordedHash.slice(0, 16)}...`)
+    }
+  }
+
+  console.log('')
+  if (report.allGood) {
+    console.log(c.green('  All files verified. Integrity intact.'))
+  } else {
+    console.log(c.red('  Integrity issues detected!'))
+    console.log(c.dim('  Run proxy-journal preserve to record current state.'))
+  }
+
+  if (report.fingerprint) {
+    console.log(c.dim(`  Fingerprint: ${report.fingerprint}`))
+  }
+
+  auditLog(home, 'verify', [], report.allGood ? 'ok' : 'warning', `allGood=${report.allGood}`)
+  return report.allGood ? 0 : 1
+}
+
+function cmdSecureWake(args) {
+  const home = resolveHome()
+  if (!requireInit(home)) return 1
+
+  const opts = parseWakeOpts(args)
+  const { text } = buildWakePack(home, {
+    mode: opts.mode,
+    refreshJournal: opts.refreshJournal,
+  })
+
+  const { text: secureText, scan, fingerprint } = buildSecureWakePack(home, text)
+
+  process.stdout.write(secureText)
+
+  if (opts.stats) {
+    console.error(c.dim(`secure-wake  mode=${opts.mode}  chars=${secureText.length}  ~${Math.ceil(secureText.length / 4)} tokens (est.)`))
+    if (scan.stats.total > 0) {
+      console.error(c.yellow(`  ⚠ ${scan.stats.total} pattern(s) detected: ${scan.findings.map((f) => f.category).join(', ')}`))
+    } else {
+      console.error(c.green('  ✓ Scan clean — no injection patterns detected'))
+    }
+  }
+
+  auditLog(home, 'secure-wake', args, scan.clean ? 'ok' : 'warning',
+    `fingerprint=${fingerprint?.slice(0, 16) || 'none'} findings=${scan.stats.total}`)
+  return 0
+}
+
+function cmdScan(args) {
+  const home = resolveHome()
+
+  // If a file path is given, scan that file
+  if (args[0] && !args[0].startsWith('-')) {
+    const filePath = args[0]
+    if (!existsSync(filePath)) {
+      console.error(c.red(`File not found: ${filePath}`))
+      return 1
+    }
+    try {
+      const content = readFileSync(filePath, 'utf8')
+      const result = scanText(content)
+
+      console.log(c.cyan(`═══ Scan: ${filePath} ═══`))
+      if (result.clean) {
+        console.log(c.green('✓ Clean — no injection patterns detected'))
+      } else {
+        console.log(c.red(`⚠ ${result.stats.total} pattern(s) detected:`))
+        for (const f of result.findings) {
+          console.log(`  ${f.severity === 'critical' ? c.red('●') : f.severity === 'high' ? c.yellow('●') : c.dim('●')} [${f.severity}] ${f.description}`)
+          console.log(`    match: ${c.dim(f.match)}`)
+        }
+      }
+      auditLog(home, 'scan', [filePath], result.clean ? 'ok' : 'warning', `findings=${result.stats.total}`)
+      return result.clean ? 0 : 1
+    } catch (e) {
+      console.error(c.red(`Read error: ${e.message}`))
+      return 1
+    }
+  }
+
+  // No file — scan the full journal
+  if (!requireInit(home)) return 1
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — security scan'))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  const report = securityReport(home)
+
+  for (const [fileType, result] of Object.entries(report.files)) {
+    const icon = result.clean ? c.green('✓') : c.red('⚠')
+    console.log(`  ${icon}  ${fileType}: ${result.findings.length} finding(s)`)
+    for (const f of result.findings) {
+      console.log(`      [${f.severity}] ${f.description}: ${c.dim(f.match)}`)
+    }
+  }
+
+  console.log('')
+  if (report.overallClean) {
+    console.log(c.green('  All clean — no injection patterns detected'))
+  } else {
+    console.log(c.red(`  ${report.totalFindings} finding(s) across journal files`))
+  }
+
+  auditLog(home, 'scan', [], report.overallClean ? 'ok' : 'warning', `findings=${report.totalFindings}`)
+  return report.overallClean ? 0 : 1
+}
+
+function cmdAudit(args) {
+  const home = resolveHome()
+  if (!dbReady(home)) {
+    console.error(c.red('SQLite database not initialized. Run: proxy-journal migrate'))
+    return 1
+  }
+
+  if (args.includes('--suspicious') || args.includes('-s')) {
+    console.log(c.cyan('═══════════════════════════════════'))
+    console.log(c.bold('  PROXY JOURNAL — suspicious activity'))
+    console.log(c.cyan('═══════════════════════════════════'))
+
+    const result = detectSuspicious(home)
+    if (!result.suspicious) {
+      console.log(c.green('  No suspicious activity detected'))
+      console.log(c.dim(`  Analyzed ${result.totalAnalyzed} entries`))
+    } else {
+      console.log(c.red(`  ${result.entries.length} suspicious entry/entries found:`))
+      for (const e of result.entries) {
+        const sev = e.severity === 'critical' ? c.red('CRIT') : e.severity === 'warning' ? c.yellow('WARN') : c.dim('INFO')
+        console.log(`  [${sev}] ${e.timestamp}  ${e.command}  ${e.reason}`)
+      }
+    }
+    return result.suspicious ? 1 : 0
+  }
+
+  if (args.includes('--summary')) {
+    const summary = auditSummary(home)
+    if (!summary) {
+      console.error(c.red('No audit data available'))
+      return 1
+    }
+    console.log(c.cyan('═══════════════════════════════════'))
+    console.log(c.bold('  PROXY JOURNAL — audit summary'))
+    console.log(c.cyan('═══════════════════════════════════'))
+    console.log(`  Total entries:  ${summary.total}`)
+    console.log(`  Last 24h:       ${summary.last24h}`)
+    console.log('')
+    console.log(c.bold('  By command:'))
+    for (const r of summary.byCommand) {
+      console.log(`    ${c.yellow(r.command.padEnd(16))} ${r.count}`)
+    }
+    console.log('')
+    console.log(c.bold('  By result:'))
+    for (const r of summary.byResult) {
+      console.log(`    ${r.result.padEnd(16)} ${r.count}`)
+    }
+    return 0
+  }
+
+  // Default: show last N entries
+  const n = Math.max(1, Math.min(500, parseInt(args[0], 10) || 20))
+  const entries = getAuditLog(home, n)
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold(`  PROXY JOURNAL — audit log (last ${entries.length})`))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  if (!entries.length) {
+    console.log(c.dim('  No audit entries yet'))
+    return 0
+  }
+
+  for (const e of entries) {
+    const icon = e.result === 'ok' ? c.green('·') : e.result === 'error' ? c.red('✗') : c.yellow('!')
+    console.log(`  ${icon} ${c.dim(e.timestamp)}  ${c.yellow(e.command.padEnd(16))} ${e.hostname || '?'}  [${e.result}]`)
+    if (e.details) console.log(`    ${c.dim(e.details)}`)
+  }
+  return 0
+}
+
+function cmdMigrate() {
+  const home = resolveHome()
+  if (!requireInit(home)) return 1
+
+  console.log(c.cyan('═══════════════════════════════════'))
+  console.log(c.bold('  PROXY JOURNAL — migrate to SQLite'))
+  console.log(c.cyan('═══════════════════════════════════'))
+
+  // Initialize database
+  console.log(c.dim('  Initializing SQLite database...'))
+  initDatabase(home)
+
+  if (!dbReady(home)) {
+    console.error(c.red('  Failed to initialize SQLite database'))
+    console.error(c.dim('  Is sqlite3 CLI installed? (apt install sqlite3)'))
+    return 1
+  }
+
+  console.log(c.green('  ✓ Database initialized'))
+
+  // Migrate data
+  console.log(c.dim('  Migrating files to SQLite...'))
+  const count = migrateFromFiles(home, filesFor, readJson, readStateLines)
+  console.log(c.green(`  ✓ Migrated ${count} records`))
+
+  // Record initial integrity hashes
+  console.log(c.dim('  Recording integrity hashes...'))
+  const { recorded } = recordIntegrity(home)
+  console.log(c.green(`  ✓ Recorded ${recorded} file hashes`))
+
+  // Log the migration
+  auditLog(home, 'migrate', [], 'ok', `migrated=${count} records, ${recorded} hashes`)
+  logSecurityEvent(home, 'migration_complete', 'info', `Migrated ${count} records to SQLite`, 'cli.mjs')
+
+  console.log('')
+  console.log(c.green('  Migration complete. SQLite is now active.'))
+  console.log(c.dim('  Original JSON/NDJSON files are preserved.'))
   return 0
 }
 
@@ -489,6 +787,16 @@ export function run(argv) {
     case 'path':
     case 'home':
       return cmdPath()
+    case 'verify':
+      return cmdVerify()
+    case 'secure-wake':
+      return cmdSecureWake(rest)
+    case 'scan':
+      return cmdScan(rest)
+    case 'audit':
+      return cmdAudit(rest)
+    case 'migrate':
+      return cmdMigrate()
     case 'help':
     case '-h':
     case '--help':

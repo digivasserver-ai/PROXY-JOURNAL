@@ -1,7 +1,7 @@
 {
   "name": "proxy-journal",
-  "version": "1.1.0",
-  "description": "PROXY JOURNAL — a portable development journal for AI/LLM sessions. Persist identity, memory, and progress across chats.",
+  "version": "1.2.0",
+  "description": "PROXY JOURNAL — a portable development journal for AI/LLM sessions with integrity verification and prompt injection protection. Persist identity, memory, and progress across chats.",
   "type": "module",
   "bin": {
     "proxy-journal": "./bin/proxy-journal.mjs",
@@ -10,7 +10,10 @@
   "scripts": {
     "start": "node bin/proxy-journal.mjs",
     "test": "node --test test/*.test.mjs",
-    "wake": "node bin/proxy-journal.mjs wake"
+    "wake": "node bin/proxy-journal.mjs wake",
+    "verify": "node bin/proxy-journal.mjs verify",
+    "scan": "node bin/proxy-journal.mjs scan",
+    "secure-wake": "node bin/proxy-journal.mjs secure-wake"
   },
   "keywords": [
     "ai",
@@ -20,7 +23,11 @@
     "bootstrap",
     "devtools",
     "proxy",
-    "digivasconnect"
+    "digivasconnect",
+    "security",
+    "integrity",
+    "prompt-injection",
+    "sqlite"
   ],
   "author": "DIGIVASCONNECT PTY (LTD)",
   "license": "MIT",

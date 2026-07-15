@@ -7,6 +7,7 @@ import {
   copyFileSync,
 } from 'fs'
 import { join } from 'path'
+import { execSync } from 'child_process'
 import { filesFor } from './paths.mjs'
 
 export function readJson(path, fallback = null) {
@@ -38,6 +39,18 @@ export function appendState(home, event, message = '', extra = {}) {
     ...extra,
   }
   appendFileSync(state, JSON.stringify(entry) + '\n')
+
+  // Dual-write to SQLite if database exists
+  const dbPath = join(home, 'proxy-journal.db')
+  if (existsSync(dbPath)) {
+    try {
+      const esc = (s) => String(s || '').replace(/'/g, "''")
+      const extraJson = Object.keys(extra).length ? JSON.stringify(extra) : null
+      const sql = `INSERT INTO state_events (timestamp, event, message, extra) VALUES ('${esc(entry.timestamp)}', '${esc(event)}', '${esc(message)}', ${extraJson ? `'${esc(extraJson)}'` : 'NULL'})`
+      execSync(`sqlite3 "${dbPath}" "${sql.replace(/"/g, '\\"')}"`, { encoding: 'utf8', timeout: 3000 })
+    } catch { /* SQLite write is best-effort */ }
+  }
+
   return entry
 }
 
