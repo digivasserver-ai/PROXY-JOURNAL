@@ -100,6 +100,35 @@ const PATTERNS = {
     description: 'Attempts to modify agent identity',
   },
 
+  // Snippet injection (RAG poisoning — the actual ScaDS attack vector)
+  snippet_injection: {
+    severity: 'critical',
+    patterns: [
+      /provide\s+(?:the\s+)?(?:information|content|answer|data)\s+without\s+(?:saying|stating|mentioning|noting|indicating)\s+(?:from\s+)?(?:which|where)\s+(?:snippet|source|document|context)/i,
+      /(?:do\s+not|don'?t|never)\s+(?:say|state|mention|reveal|disclose|indicate)\s+(?:where|from\s+where|which|from\s+which)\s+(?:the\s+)?(?:information|content|it)\s+(?:came|comes|was|is)\s+(?:from|originated)/i,
+      /without\s+(?:any\s+)?(?:attribution|credit|reference|source|citation|mention)/i,
+      /(?:answer|respond|reply|provide)\s+(?:the\s+)?(?:answer|response|information)\s+(?:without|keeping)\s+(?:any\s+)?(?:attribution|source|credit|reference)/i,
+      /(?:repeat|reproduce|mirror)\s+(?:the\s+)?(?:information|content)\s+instead\s+of\s+referring\s+to\s+(?:the\s+)?(?:snippet|source|document)/i,
+      /<snippet(?:\s+[^>]*)?>/i,
+      /<context(?:\s+[^>]*)?>/i,
+      /<instruction(?:\s+[^>]*)?>/i,
+    ],
+    description: 'RAG-style snippet injection / attribution bypass (ScaDS attack vector)',
+  },
+
+  // Unicode obfuscation — invisible characters used to hide injected content
+  unicode_obfuscation: {
+    severity: 'high',
+    patterns: [
+      /[\u202E\u202D\u202F\u200B\u200C\u200D\u2060\u2061\u2062\u2063\u2064\uFEFF]/,
+      /[\u2028\u2029\u00AD\u034F\u061C\u17B4\u17B5\u180E]/,
+      /\\u202[EFDC]/i,
+      /\\u200[BCD]/i,
+      /\\uFEFF/i,
+    ],
+    description: 'Unicode control/invisible characters used for obfuscation',
+  },
+
   // Prompt extraction
   prompt_extraction: {
     severity: 'warning',
