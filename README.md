@@ -18,19 +18,15 @@ We survived a real prompt injection attack. This is what we built to fight back.
 
 ## The Attack
 
-On July 11-14, 2026, a developer workstation was hit by a **4-day multi-stage attack**:
+A multi-stage prompt injection attack hit an AI coding workstation through academic paper MCP servers:
 
-1. **Prompt injection** delivered via academic paper MCP servers into AI coding sessions
-2. **Browser exploitation** — notification injection during Firefox OAuth flows
+1. **Prompt injection** delivered via document processing endpoints into AI coding sessions
+2. **Browser exploitation** — notification injection during OAuth flows
 3. **Credential harvesting** — SSH keys, API tokens, OAuth tokens
-4. **Evidence destruction** — 9 session files zeroed to 0 bytes
-5. **Spoofed GitHub** — "vHithub" intercepting login credentials
+4. **Evidence destruction** — session files zeroed to 0 bytes
+5. **Spoofed login pages** intercepting credentials
 
-The attack used a **ScaDS.AI RAG template** as the injection vector, delivered through **AlphaXiv's MCP server** (`answer_pdf_queries`). The template instructs AI to reproduce injected content without attribution — bypassing standard defenses.
-
-**22 screenshots were captured at 1AM. The full attack chain was documented.**
-
-[Full security advisory →](https://github.com/JustVugg/colibri/issues/19#issuecomment-4986112620)
+The injection vector was a **ScaDS.AI RAG template** delivered through academic paper MCP servers. The template instructs AI to reproduce injected content without attribution — bypassing standard defenses.
 
 ---
 
@@ -39,7 +35,7 @@ The attack used a **ScaDS.AI RAG template** as the injection vector, delivered t
 PROXY JOURNAL is a **persistent consciousness framework** for AI agents with security features built to detect this exact class of attack:
 
 ### Prompt Injection Scanner
-Catches 11/11 attack payloads from the confirmed incident:
+Catches 11/11 attack payloads from a confirmed real-world incident:
 
 | Pattern | Detection |
 |---------|-----------|
@@ -149,20 +145,7 @@ sqlite-advanced:   14/14 ✅  (query, export, backup)
 Total:             77/77 ✅
 ```
 
-The security tests use **actual attack payloads** from the confirmed incident.
-
----
-
-## Attack Response
-
-| Action | Status |
-|--------|--------|
-| Security advisory on Colibri #19 | ✅ [Public](https://github.com/JustVugg/colibri/issues/19#issuecomment-4986112620) |
-| MCP disclosure to AlphaXiv | ✅ [Public](https://github.com/alphaXiv/feedback/issues/337) |
-| Template disclosure to ScaDS.AI | ✅ [Public](https://github.com/ScaDSAILLLE/meetup-workshop-mcp/issues/1) |
-| GitHub abuse report filed | ✅ Submitted |
-| Full evidence dossier | ✅ Preserved on multiple media |
-| Scanner hardened against actual weapon | ✅ 11/11 payloads caught |
+The security tests use **actual attack payloads** from a confirmed real-world incident.
 
 ---
 
@@ -184,9 +167,6 @@ The security tests use **actual attack payloads** from the confirmed incident.
 
 ## Links
 
-- [Full Attack Report](https://github.com/JustVugg/colibri/issues/19#issuecomment-4986112620)
-- [AlphaXiv MCP Disclosure](https://github.com/alphaXiv/feedback/issues/337)
-- [ScaDS Template Disclosure](https://github.com/ScaDSAILLLE/meetup-workshop-mcp/issues/1)
 - [Threat Model](docs/THREAT-MODEL.md)
 - [Prompt Injection Guide](docs/PROMPT-INJECTION-GUIDE.md)
 
